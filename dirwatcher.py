@@ -11,6 +11,9 @@ import signal
 import time
 import warnings # noqa
 
+# Setup logger
+logging.config.fileConfig('logger_config.ini')
+logger = logging.getLogger('mainLogger')
 
 exit_flag = False
 start_time = time.time()
@@ -55,18 +58,21 @@ def signal_handler(sig_num, frame):
     exit_flag = True
 
 
-def scan_file(file, word, history={}, curdir=os.path.curdir):
+def scan_file(file, word, history=None, curdir=os.path.curdir):
     '''
     Scans files,
     keep track of line count,
     log found keywords,
     '''
 
+    if not history:
+        history = {}
+
     logger = logging.getLogger('mainLogger')
     logger.debug('Scanning {} for {}'.format(file, word))
 
     if file.path in history:
-        if history[file.path][1] is os.stat(file.path).st_size:
+        if history[file.path][1] == os.stat(file.path).st_size:
             return history
     else:
         # log
@@ -78,7 +84,7 @@ def scan_file(file, word, history={}, curdir=os.path.curdir):
         max_num = history[file.path][0]
         for j, line in enumerate(list(f)):
             i = j-1
-            if word in line and i > max_num:
+            if i > max_num and word in line or i == 0:
                 # Log
                 logger.info('Found {} in {} at line {}'.format(word, file.name, i)) # noqa
                 max_num = i
@@ -88,10 +94,13 @@ def scan_file(file, word, history={}, curdir=os.path.curdir):
     return history
 
 
-def watch_dir(directory, word, ext, history={}, wait=5):
+def watch_dir(directory, word, ext, history=None, wait=5):
     '''
     This actively scans the dirs being watched.
     '''
+
+    if not history:
+        history = {}
 
     logger = logging.getLogger('mainLogger')
 
@@ -108,9 +117,13 @@ def watch_dir(directory, word, ext, history={}, wait=5):
                 history.update(scan_file(file, word, history, directory))
 
         for file in history:
+            to_kill = []
             if file not in map(lambda f: f.path, files):
                 logger.info('File {} removed'.format(file))
-                history.pop(file)
+                to_kill.append(file)
+
+            for kill in to_kill:
+                history.pop(kill)
     else:
         logger.warn('Directory {} not found. Waiting'.format(directory))
         time.sleep(wait)
@@ -134,9 +147,6 @@ def main():
     # parser.add_argument('--debug', action='store_true', help='Sets debug level') # noqa
     args = parser.parse_args()
 
-    # Setup logger
-    logging.config.fileConfig('logger_config.ini')
-    logger = logging.getLogger('mainLogger')
     logger.info(banner('Starting', length=40))
 
     # Run until SIGTERM
