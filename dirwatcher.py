@@ -142,7 +142,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--directory', '--dir', '-D', '-d', default=os.path.abspath('.'), help='Dir name or comma separated list of dirs') # noqa
     parser.add_argument('--extension', '--ext', '-E', '-e', default=None, help='Specifies the filetype being watched') # noqa
-    parser.add_argument('--interval', '--int', '-I', '-i', type=int, default=3, help='Number of seconds between scans') # noqa
+    parser.add_argument('--interval', '--int', '-I', '-i', type=int, default=1, help='Number of seconds between scans') # noqa
     parser.add_argument('--magic', '--word', '-m', '-w', type=str, help='Word to search for', required=True) # noqa
     # parser.add_argument('--debug', action='store_true', help='Sets debug level') # noqa
     args = parser.parse_args()
