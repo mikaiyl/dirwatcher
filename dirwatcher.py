@@ -84,7 +84,7 @@ def scan_file(file, word, history=None, curdir=os.path.curdir):
         max_num = history[file.path][0]
         for j, line in enumerate(list(f)):
             i = j-1
-            if i > max_num and word in line or i == 0:
+            if i > max_num and word in line or j == 1:
                 # Log
                 logger.info('Found {} in {} at line {}'.format(word, file.name, i)) # noqa
                 max_num = i
