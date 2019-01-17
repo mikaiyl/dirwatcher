@@ -70,13 +70,15 @@ def scan_file(file, word, history={}, curdir=os.path.curdir):
             return history
     else:
         # log
+        logger.info('New file: {}, found in {}'.format(file.name, curdir))
         history[file.path] = (0, os.stat(file.path).st_size) # noqa
 
     # Open file and find occurences of search term
     with open(os.path.abspath(file.path), 'r') as f:
-        max_num = 0
-        for i, line in enumerate(list(f)):
-            if word in line and i > history[file.path][0]:
+        max_num = history[file.path][0]
+        for j, line in enumerate(list(f)):
+            i = j-1
+            if word in line and i > max_num:
                 # Log
                 logger.info('Found {} in {} at line {}'.format(word, file.name, i)) # noqa
                 max_num = i
@@ -97,13 +99,18 @@ def watch_dir(directory, word, ext, history={}, wait=5):
     if os.path.isdir(directory):
         logger.debug('Scanning {}'.format(os.path.abspath(directory)))
         if ext:
-            files = filter(lambda f: os.path.splitext(f.path)[-1] == '.' + ext, list(os.scandir(directory))) # noqa
+            files = list(filter(lambda f: f.path.endswith(ext), list(os.scandir(directory)))) # noqa
         else:
             files = list(os.scandir(directory)) # noqa
 
         for file in files:
             if not file.is_dir():
                 history.update(scan_file(file, word, history, directory))
+
+        for file in history:
+            if file not in map(lambda f: f.path, files):
+                logger.info('File {} removed'.format(file))
+                history.pop(file)
     else:
         logger.warn('Directory {} not found. Waiting'.format(directory))
         time.sleep(wait)
@@ -121,7 +128,7 @@ def main():
     # Setup argparser
     parser = argparse.ArgumentParser()
     parser.add_argument('--directory', '--dir', '-D', '-d', default=os.path.abspath('.'), help='Dir name or comma separated list of dirs') # noqa
-    parser.add_argument('--extension', '--ext', '-E', '-l', default='log', help='Specifies the filetype being watched') # noqa
+    parser.add_argument('--extension', '--ext', '-E', '-e', default=None, help='Specifies the filetype being watched') # noqa
     parser.add_argument('--interval', '--int', '-I', '-i', type=int, default=3, help='Number of seconds between scans') # noqa
     parser.add_argument('--magic', '--word', '-m', '-w', type=str, help='Word to search for', required=True) # noqa
     # parser.add_argument('--debug', action='store_true', help='Sets debug level') # noqa
