@@ -51,7 +51,6 @@ def signal_handler(sig_num, frame):
     # log the signal name (the python2 way)
     # signames = dict((k, v) for v, k in reversed(sorted(signal.__dict__.items())) if v.startswith('SIG') and not v.startswith('SIG_')) # noqa
     # logger.warn('Received ' + signames[sig_num])
-    logger = logging.getLogger('mainLogger')
     logger.info('Received ' + signal.Signals(sig_num).name)
 
     global exit_flag
@@ -68,7 +67,6 @@ def scan_file(file, word, history=None, curdir=os.path.curdir):
     if not history:
         history = {}
 
-    logger = logging.getLogger('mainLogger')
     logger.debug('Scanning {} for {}'.format(file, word))
 
     if file.path in history:
@@ -77,17 +75,16 @@ def scan_file(file, word, history=None, curdir=os.path.curdir):
     else:
         # log
         logger.info('New file: {}, found in {}'.format(file.name, curdir))
-        history[file.path] = (0, os.stat(file.path).st_size) # noqa
+        history[file.path] = (-1, os.stat(file.path).st_size) # noqa
 
     # Open file and find occurences of search term
     with open(os.path.abspath(file.path), 'r') as f:
         max_num = history[file.path][0]
-        for j, line in enumerate(list(f)):
-            i = j-1
-            if i > max_num and word in line or j == 1:
+        for j, line in enumerate(list(f), 0):
+            if j > history[file.path][0] and word in line:
                 # Log
-                logger.info('Found {} in {} at line {}'.format(word, file.name, i)) # noqa
-                max_num = i
+                logger.info('Found {} in {} at line {}'.format(word, file.name, j)) # noqa
+                max_num = j
 
         history.update({file.path: (max_num, os.stat(file.path).st_size)})
 
@@ -102,8 +99,6 @@ def watch_dir(directory, word, ext, history=None, wait=5):
     if not history:
         history = {}
 
-    logger = logging.getLogger('mainLogger')
-
     # Does the directory exist?
     if os.path.isdir(directory):
         logger.debug('Scanning {}'.format(os.path.abspath(directory)))
@@ -116,14 +111,14 @@ def watch_dir(directory, word, ext, history=None, wait=5):
             if not file.is_dir():
                 history.update(scan_file(file, word, history, directory))
 
+        to_kill = []
         for file in history:
-            to_kill = []
             if file not in map(lambda f: f.path, files):
                 logger.info('File {} removed'.format(file))
                 to_kill.append(file)
 
-            for kill in to_kill:
-                history.pop(kill)
+        for kill in to_kill:
+            history.pop(kill)
     else:
         logger.warn('Directory {} not found. Waiting'.format(directory))
         time.sleep(wait)
@@ -140,10 +135,10 @@ def main():
 
     # Setup argparser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--directory', '--dir', '-D', '-d', default=os.path.abspath('.'), help='Dir name or comma separated list of dirs') # noqa
-    parser.add_argument('--extension', '--ext', '-E', '-e', default=None, help='Specifies the filetype being watched') # noqa
-    parser.add_argument('--interval', '--int', '-I', '-i', type=int, default=1, help='Number of seconds between scans') # noqa
-    parser.add_argument('--magic', '--word', '-m', '-w', type=str, help='Word to search for', required=True) # noqa
+    parser.add_argument('--directory', '-d', default=os.path.abspath('.'), help='Dir name or comma separated list of dirs') # noqa
+    parser.add_argument('--extension', '-e', default=None, help='Specifies the filetype being watched') # noqa
+    parser.add_argument('--interval', '-i', type=int, default=1, help='Number of seconds between scans') # noqa
+    parser.add_argument('--magic', '-m', type=str, help='Word to search for', required=True) # noqa
     # parser.add_argument('--debug', action='store_true', help='Sets debug level') # noqa
     args = parser.parse_args()
 
